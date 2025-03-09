@@ -74,6 +74,8 @@ export default function Home() {
           <p className="mt-6 text-lg text-gray-300">
             Mixify is designed to revolutionize the way you interact with music. Whether you're crafting the perfect workout mix or setting the mood for a chill evening, we provide the tools to make it happen effortlessly.
           </p>
+          <div className="p-6">
+    </div>
         </div>
       </ClientWrapper>
     </main>

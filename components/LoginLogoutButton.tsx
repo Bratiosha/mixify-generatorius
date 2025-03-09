@@ -5,16 +5,16 @@ import { Button } from "./ui/button";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import { signout } from "@/lib/auth-actions";
+import { loginWithSpotify } from "@/app/(auth)/auth/auth";
 
 type User = {
   id: string;
   email?: string;
-  // Add other user properties as needed
 } | null;
 
 const LoginButton = () => {
   const [user, setUser] = useState<User>(null);
-  const [loading, setLoading] = useState(true); // Add a loading state
+  const [loading, setLoading] = useState(true);
   const router = useRouter();
   const supabase = createClient();
 
@@ -35,7 +35,7 @@ const LoginButton = () => {
       } catch (error) {
         console.error("Unexpected error:", error);
       } finally {
-        setLoading(false); // Set loading to false after fetching
+        setLoading(false);
       }
     };
 
@@ -46,33 +46,30 @@ const LoginButton = () => {
     try {
       await signout();
       setUser(null);
-      router.refresh(); // Refresh the page to reflect the logout state
+      router.refresh();
     } catch (error) {
       console.error("Error during logout:", error);
     }
   };
 
   const handleSpotifyLogin = () => {
-    router.push("/api/auth/spotify"); // Redirect to Spotify OAuth flow
+    router.push("/spotify-login"); // Redirect to Spotify OAuth flow
   };
 
   if (loading) {
-    return <Button disabled>Loading...</Button>; // Show a loading state
+    return <Button disabled>Loading...</Button>;
   }
 
   if (user) {
     return (
       <div className="flex items-center space-x-4">
         <Button
-          onClick={handleSpotifyLogin}
+          onClick={loginWithSpotify}
           className="bg-[#1DB954] hover:bg-[#1ed760] text-white"
         >
           Connect with Spotify
         </Button>
-        <Button
-          onClick={handleLogout}
-          className="bg-red-500 hover:bg-red-600"
-        >
+        <Button onClick={handleLogout} className="bg-red-500 hover:bg-red-600">
           Log out
         </Button>
       </div>

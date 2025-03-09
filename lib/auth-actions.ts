@@ -2,7 +2,6 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-
 import { createClient } from "@/utils/supabase/server";
 
 export async function login(formData: FormData) {
@@ -82,4 +81,25 @@ export async function signInWithGoogle() {
   }
 
   redirect(data.url);
+}
+
+// New function to handle Spotify authentication
+export async function signInWithSpotify(access_token: string, refresh_token: string) {
+  const supabase = createClient();
+
+  // Update the user's metadata with Spotify tokens
+  const { error } = await supabase.auth.updateUser({
+    data: {
+      spotify_access_token: access_token,
+      spotify_refresh_token: refresh_token,
+    },
+  });
+
+  if (error) {
+    console.error("Error updating user with Spotify tokens:", error);
+    throw new Error("Failed to store Spotify tokens");
+  }
+
+  revalidatePath("/", "layout");
+  redirect("/liked-tracks");
 }
