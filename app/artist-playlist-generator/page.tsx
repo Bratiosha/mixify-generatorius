@@ -4,8 +4,8 @@ import ArtistPlaylistGenerator from "../../components/ArtistPlaylistGenerator";
 
 export default function ArtistPlaylistGeneratorPage() {
   return (
-    <Layout>
+    
       <ArtistPlaylistGenerator />
-    </Layout>
+    
   );
 }

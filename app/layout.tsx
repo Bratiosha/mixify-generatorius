@@ -4,6 +4,7 @@ import "./globals.css";
 import { cn } from "@/lib/utils"
 const inter = Inter({ subsets: ["latin"] });
 import { Toaster } from "sonner";
+import { Providers } from '../provider/providers';
 
 export const metadata: Metadata = {
   title: "Mixify",
@@ -17,7 +18,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={cn("bg-background", inter.className )}>{children}
+      <body className={cn("bg-background", inter.className )}><Providers>{children}</Providers>
       <Toaster richColors />
       </body>
     </html>

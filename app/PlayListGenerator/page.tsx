@@ -4,8 +4,8 @@ import Layout from "../spotifyLayout";
 
 export default function PlaylistGeneratorPage() {
   return (
-    <Layout>
+    
       <PlaylistGenerator />
-    </Layout>
+    
   );
 }

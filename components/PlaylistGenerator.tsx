@@ -1,60 +1,50 @@
-"use client";
+// app/playlist-generator/page.tsx
+'use client';
 
-import { useState, useEffect } from "react";
-import { searchTracks, createPlaylist, addTracksToPlaylist, getUserProfile } from "@/app/(auth)/auth/spotifyApi";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { toast } from "sonner";
-import ClientWrapper from "@/components/ClientWrapper";
-import { useRouter } from "next/navigation";
-import { Loader2, X } from "lucide-react";
-import Image from "next/image";
-import { useAuthStore } from "@/store/store"; // Import the Zustand store
+import { useState, useEffect } from 'react';
+import { searchTracks, createPlaylist, addTracksToPlaylist, getUserProfile } from '@/app/(auth)/auth/spotifyApi';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { toast } from 'sonner';
+import ClientWrapper from '@/components/ClientWrapper';
+import { useRouter } from 'next/navigation';
+import { Loader2, X } from 'lucide-react';
+import Image from 'next/image';
+import { useAuthStore } from '@/store/store';
 
 export default function PlaylistGenerator() {
-  const { token, userId, setToken, setUserId } = useAuthStore(); // Use Zustand store
-  const [query, setQuery] = useState("");
+  const { token, userId, userName, setToken, setUserId, setUserName } = useAuthStore();
+  const [query, setQuery] = useState('');
   const [tracks, setTracks] = useState<any[]>([]);
   const [selectedTracks, setSelectedTracks] = useState<any[]>([]);
-  const [playlistName, setPlaylistName] = useState("");
-  const [userName, setUserName] = useState("");
+  const [playlistName, setPlaylistName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isCreatingPlaylist, setIsCreatingPlaylist] = useState(false);
   const router = useRouter();
-
-  useEffect(() => {
-    const url = new URL(window.location.href);
-    const accessToken = url.searchParams.get("access_token");
-
-    if (accessToken) {
-      setToken(accessToken); // Set token in Zustand store
-      window.history.pushState({}, "", "/");
-    }
-  }, [setToken]);
 
   useEffect(() => {
     async function fetchUserProfile() {
       if (token) {
         try {
           const user = await getUserProfile(token);
-          setUserId(user.id); // Set userId in Zustand store
+          setUserId(user.id);
           setUserName(user.display_name);
         } catch (error) {
-          console.error("Error fetching user profile:", error);
-          toast.error("Failed to fetch user profile. Please reconnect to Spotify.");
+          console.error('Error fetching user profile:', error);
+          toast.error('Failed to fetch user profile. Please reconnect to Spotify.');
         }
       }
     }
     fetchUserProfile();
-  }, [token, setUserId]);
+  }, [token, setUserId, setUserName]);
 
   const handleSearch = async () => {
-    if (query.trim() === "") {
-      toast.error("Please enter a search query.");
+    if (query.trim() === '') {
+      toast.error('Please enter a search query.');
       return;
     }
 
     if (!token) {
-      toast.error("You are not logged in. Please connect to Spotify.");
+      toast.error('You are not logged in. Please connect to Spotify.');
       return;
     }
 
@@ -63,8 +53,8 @@ export default function PlaylistGenerator() {
       const results = await searchTracks(query, token);
       setTracks(results);
     } catch (error) {
-      console.error("Error searching tracks:", error);
-      toast.error("Failed to search tracks. Please try again.");
+      console.error('Error searching tracks:', error);
+      toast.error('Failed to search tracks. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -83,12 +73,12 @@ export default function PlaylistGenerator() {
 
   const handleCreatePlaylist = async () => {
     if (!playlistName || selectedTracks.length === 0) {
-      toast.error("Please enter a playlist name and select at least one track.");
+      toast.error('Please enter a playlist name and select at least one track.');
       return;
     }
 
     if (!token || !userId) {
-      toast.error("You are not logged in. Please connect to Spotify.");
+      toast.error('You are not logged in. Please connect to Spotify.');
       return;
     }
 
@@ -102,11 +92,11 @@ export default function PlaylistGenerator() {
         description: `Added ${selectedTracks.length} tracks.`,
       });
 
-      setPlaylistName("");
+      setPlaylistName('');
       setSelectedTracks([]);
     } catch (error) {
-      console.error("Error creating playlist:", error);
-      toast.error("❌ Error creating playlist. Please check your Spotify connection.");
+      console.error('Error creating playlist:', error);
+      toast.error('❌ Error creating playlist. Please check your Spotify connection.');
     } finally {
       setIsCreatingPlaylist(false);
     }
@@ -114,16 +104,16 @@ export default function PlaylistGenerator() {
 
   const handleLogout = () => {
     setToken(null);
-    setUserId("");
-    setUserName(""); // Clear the Spotify account name on logout
+    setUserId('');
+    setUserName('');
     setTracks([]);
     setSelectedTracks([]);
-    setPlaylistName("");
-    router.push("/");
+    setPlaylistName('');
+    router.push('/');
   };
 
   const goToArtistPlaylistGenerator = () => {
-    router.push("/artist-playlist-generator");
+    router.push('/artist-playlist-generator');
   };
 
   return (
@@ -132,7 +122,7 @@ export default function PlaylistGenerator() {
       <div className="absolute top-5 left-5 right-5 flex justify-between items-center p-4">
         <div className="flex flex-col items-start gap-2">
           <Image src="/images/Mixify-logo.png" alt="Mixify Logo" width={160} height={50} className="ml-4 mb-4" />
-          {userName && ( // Display the Spotify account name if available
+          {userName && (
             <p className="text-gray-300 bg-gray-900 p-3 rounded-xl">Welcome, <span className="font-bold text-[#1DB954]">{userName}</span></p>
           )}
         </div>
@@ -191,7 +181,7 @@ export default function PlaylistGenerator() {
               disabled={isLoading}
               className="bg-green-500 hover:bg-green-600 px-4 py-2 rounded-md transition-all duration-300 hover:scale-105"
             >
-              {isLoading ? <Loader2 className="animate-spin" /> : "🔍"}
+              {isLoading ? <Loader2 className="animate-spin" /> : '🔍'}
             </button>
           </div>
 
@@ -204,8 +194,8 @@ export default function PlaylistGenerator() {
                 <div
                   key={track.id}
                   className={`flex items-center gap-4 p-3 rounded-lg cursor-pointer transition-all duration-150 ${selectedTracks.some((t) => t.uri === track.uri)
-                      ? "bg-green-700 transform rotate-1" // Green background and slight tilt
-                      : "bg-gray-800 hover:bg-gray-700" // Default background
+                      ? 'bg-green-700 transform rotate-1'
+                      : 'bg-gray-800 hover:bg-gray-700'
                     }`}
                   onClick={() => toggleTrackSelection(track)}
                 >
@@ -217,7 +207,7 @@ export default function PlaylistGenerator() {
                   <div className="flex-grow min-w-0">
                     <p className="font-semibold truncate">{track.name}</p>
                     <p className="text-sm text-gray-300 truncate">
-                      {track.artists.map((a: { name: string }) => a.name).join(", ")}
+                      {track.artists.map((a: { name: string }) => a.name).join(', ')}
                     </p>
                   </div>
                   <div className="w-6 flex justify-end">
@@ -261,14 +251,14 @@ export default function PlaylistGenerator() {
                       <span className="ml-3 text-gray-300 font-bold">
                         {track.name}
                         <p className="font-light text-sm">
-                          {track.artists.map((a: { name: string }) => a.name).join(", ")}
+                          {track.artists.map((a: { name: string }) => a.name).join(', ')}
                         </p>
                       </span>
                     </div>
 
                     {/* Remove Button (X) */}
                     <button
-                      onClick={() => toggleTrackSelection(track)} // Remove the track
+                      onClick={() => toggleTrackSelection(track)}
                       className="text-red-500 hover:text-red-600 text-xl pr-3"
                     >
                       <X />
@@ -289,7 +279,7 @@ export default function PlaylistGenerator() {
               {isCreatingPlaylist ? (
                 <Loader2 className="animate-spin mx-auto" />
               ) : (
-                "Create Playlist"
+                'Create Playlist'
               )}
             </button>
           </div>
