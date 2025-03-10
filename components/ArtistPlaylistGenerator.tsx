@@ -267,6 +267,9 @@ export default function ArtistPlaylistGenerator() {
               </div>
             </ScrollArea>
           </div>
+          <p className="mt-6 text-lg text-gray-300">
+          Please review your Spotify playlist below, where you can discover additional recommendations to enhance your selection.
+          </p>
 
           {/* Playlist Creation */}
           <div className="mb-6">
