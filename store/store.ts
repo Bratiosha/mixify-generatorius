@@ -1,4 +1,3 @@
-// store.ts
 import { create } from 'zustand';
 
 type AuthStore = {
@@ -11,23 +10,29 @@ type AuthStore = {
 };
 
 export const useAuthStore = create<AuthStore>((set) => ({
-  token: localStorage.getItem('token') || null,
-  userId: localStorage.getItem('userId') || '',
-  userName: localStorage.getItem('userName') || '',
+  token: null, // Initialize as null on the server
+  userId: '', // Initialize as empty on the server
+  userName: '', // Initialize as empty on the server
   setToken: (token) => {
-    if (token) {
-      localStorage.setItem('token', token);
-    } else {
-      localStorage.removeItem('token');
+    if (typeof window !== 'undefined') {
+      if (token) {
+        localStorage.setItem('token', token);
+      } else {
+        localStorage.removeItem('token');
+      }
     }
     set({ token });
   },
   setUserId: (userId) => {
-    localStorage.setItem('userId', userId);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('userId', userId);
+    }
     set({ userId });
   },
   setUserName: (userName) => {
-    localStorage.setItem('userName', userName);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('userName', userName);
+    }
     set({ userName });
   },
 }));

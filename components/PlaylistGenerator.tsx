@@ -21,6 +21,18 @@ export default function PlaylistGenerator() {
   const [isCreatingPlaylist, setIsCreatingPlaylist] = useState(false);
   const router = useRouter();
 
+  // Sync localStorage with the store on client-side mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const token = localStorage.getItem('token');
+      const userId = localStorage.getItem('userId') || '';
+      const userName = localStorage.getItem('userName') || '';
+      setToken(token);
+      setUserId(userId);
+      setUserName(userName);
+    }
+  }, [setToken, setUserId, setUserName]);
+
   useEffect(() => {
     async function fetchUserProfile() {
       if (token) {
@@ -122,8 +134,10 @@ export default function PlaylistGenerator() {
       <div className="absolute top-5 left-5 right-5 flex justify-between items-center p-4">
         <div className="flex flex-col items-start gap-2">
           <Image src="/images/Mixify-logo.png" alt="Mixify Logo" width={160} height={50} className="ml-4 mb-4" />
-          {userName && (
-            <p className="text-gray-300 bg-gray-900 p-3 rounded-xl">Welcome, <span className="font-bold text-[#1DB954]">{userName}</span></p>
+          {typeof window !== 'undefined' && userName && (
+            <p className="text-gray-300 bg-gray-900 p-3 rounded-xl">
+              Welcome, <span className="font-bold text-[#1DB954]">{userName}</span>
+            </p>
           )}
         </div>
         <button
