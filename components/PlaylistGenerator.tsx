@@ -12,7 +12,7 @@ import Image from 'next/image';
 import { useAuthStore } from '@/store/store';
 
 export default function PlaylistGenerator() {
-  const { token, userId, userName, setToken, setUserId, setUserName } = useAuthStore();
+  const { token, userId, userName, setToken, setUserId, setUserName, setPlaylistInfo } = useAuthStore();
   const [query, setQuery] = useState('');
   const [tracks, setTracks] = useState<any[]>([]);
   const [selectedTracks, setSelectedTracks] = useState<any[]>([]);
@@ -20,18 +20,6 @@ export default function PlaylistGenerator() {
   const [isLoading, setIsLoading] = useState(false);
   const [isCreatingPlaylist, setIsCreatingPlaylist] = useState(false);
   const router = useRouter();
-
-  // Sync localStorage with the store on client-side mount
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const token = localStorage.getItem('token');
-      const userId = localStorage.getItem('userId') || '';
-      const userName = localStorage.getItem('userName') || '';
-      setToken(token);
-      setUserId(userId);
-      setUserName(userName);
-    }
-  }, [setToken, setUserId, setUserName]);
 
   useEffect(() => {
     async function fetchUserProfile() {
@@ -88,22 +76,32 @@ export default function PlaylistGenerator() {
       toast.error('Please enter a playlist name and select at least one track.');
       return;
     }
-
+  
     if (!token || !userId) {
       toast.error('You are not logged in. Please connect to Spotify.');
       return;
     }
-
+  
     setIsCreatingPlaylist(true);
     try {
       const playlist = await createPlaylist(userId, playlistName, token);
       const trackUris = selectedTracks.map((t) => t.uri);
       await addTracksToPlaylist(playlist.id, trackUris, token);
-
+  
       toast.success(`🎉 Playlist "${playlistName}" created!`, {
         description: `Added ${selectedTracks.length} tracks.`,
       });
-
+  
+      // Store playlist information in state or context
+      setPlaylistInfo({
+        id: playlist.id,
+        name: playlistName,
+        tracks: selectedTracks,
+      });
+  
+      // Navigate to the new page
+      router.push('/playlist-details');
+  
       setPlaylistName('');
       setSelectedTracks([]);
     } catch (error) {
@@ -134,10 +132,8 @@ export default function PlaylistGenerator() {
       <div className="absolute top-5 left-5 right-5 flex justify-between items-center p-4">
         <div className="flex flex-col items-start gap-2">
           <Image src="/images/Mixify-logo.png" alt="Mixify Logo" width={160} height={50} className="ml-4 mb-4" />
-          {typeof window !== 'undefined' && userName && (
-            <p className="text-gray-300 bg-gray-900 p-3 rounded-xl">
-              Welcome, <span className="font-bold text-[#1DB954]">{userName}</span>
-            </p>
+          {userName && (
+            <p className="text-gray-300 bg-gray-900 p-3 rounded-xl">Welcome, <span className="font-bold text-[#1DB954]">{userName}</span></p>
           )}
         </div>
         <button

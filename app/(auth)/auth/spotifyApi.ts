@@ -2,6 +2,9 @@ import axios from "axios";
 
 const BASE_URL = "https://api.spotify.com/v1";
 
+/**
+ * Search for tracks using a query.
+ */
 export async function searchTracks(query: string, token: string) {
   console.log("Searching tracks with query:", query); // Debugging
   console.log("Using token:", token); // Debugging
@@ -24,6 +27,9 @@ export async function searchTracks(query: string, token: string) {
   }
 }
 
+/**
+ * Create a new playlist for the user.
+ */
 export async function createPlaylist(userId: string, name: string, token: string) {
   const response = await axios.post(
     `${BASE_URL}/users/${userId}/playlists`,
@@ -33,6 +39,9 @@ export async function createPlaylist(userId: string, name: string, token: string
   return response.data;
 }
 
+/**
+ * Add tracks to a playlist.
+ */
 export async function addTracksToPlaylist(playlistId: string, trackUris: string[], token: string) {
   await axios.post(
     `${BASE_URL}/playlists/${playlistId}/tracks`,
@@ -41,6 +50,9 @@ export async function addTracksToPlaylist(playlistId: string, trackUris: string[
   );
 }
 
+/**
+ * Fetch the current user's profile.
+ */
 export async function getUserProfile(token: string) {
   const response = await axios.get(`${BASE_URL}/me`, {
     headers: { Authorization: `Bearer ${token}` },
@@ -51,7 +63,6 @@ export async function getUserProfile(token: string) {
 /**
  * Search for artists using a query.
  */
-// app/(auth)/auth/spotifyApi.ts
 export const searchArtists = async (query: string, token: string) => {
   try {
     const response = await fetch(
@@ -104,4 +115,26 @@ export async function getArtistTopTracks(artistId: string, token: string, market
   }
 }
 
+/**
+ * Fetch details of a playlist.
+ */
+export async function getPlaylistDetails(playlistId: string, token: string) {
+  console.log("Fetching details for playlist ID:", playlistId); // Debugging
+  console.log("Using token:", token); // Debugging
 
+  try {
+    const response = await axios.get(`${BASE_URL}/playlists/${playlistId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    console.log("Spotify API response:", response.data); // Debugging
+    return response.data;
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      console.error("Spotify API Error:", error.response?.data); // Debugging
+      throw new Error("Failed to fetch playlist details. Please try again.");
+    } else {
+      console.error("Unexpected Error:", error); // Debugging
+      throw new Error("An unexpected error occurred. Please try again.");
+    }
+  }
+}

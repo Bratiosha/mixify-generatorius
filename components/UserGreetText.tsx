@@ -1,20 +1,29 @@
-
 "use client";
 import { createClient } from "@/utils/supabase/client";
 import React, { useEffect, useState } from "react";
+import { useSupabaseAuthStore } from "@/store/supabaseAuthStore";
 
 const UserGreetText = () => {
   const [user, setUser] = useState<any>(null);
   const supabase = createClient();
+  const { setSupabaseUserId } = useSupabaseAuthStore();
+
   useEffect(() => {
     const fetchUser = async () => {
       const {
         data: { user },
       } = await supabase.auth.getUser();
       setUser(user);
+
+      // Set the Supabase user ID in the store
+      if (user) {
+        setSupabaseUserId(user.id);
+        console.log("Supabase User ID set:", user.id); // Debugging
+      }
     };
     fetchUser();
-  }, []);
+  }, [setSupabaseUserId]); // Add setSupabaseUserId to the dependency array
+
   if (user !== null) {
     console.log(user);
     return (
