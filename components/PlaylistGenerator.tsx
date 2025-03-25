@@ -7,19 +7,95 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
 import ClientWrapper from '@/components/ClientWrapper';
 import { useRouter } from 'next/navigation';
-import { Loader2, X } from 'lucide-react';
+import { Loader2, X, History } from 'lucide-react';
 import Image from 'next/image';
 import { useAuthStore } from '@/store/store';
+import { useSupabaseAuthStore } from '@/store/supabaseAuthStore';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { createClient } from '@/utils/supabase/client';
 
 export default function PlaylistGenerator() {
   const { token, userId, userName, setToken, setUserId, setUserName, setPlaylistInfo } = useAuthStore();
+  const { supabaseUserId, setSupabaseUserId } = useSupabaseAuthStore();
   const [query, setQuery] = useState('');
   const [tracks, setTracks] = useState<any[]>([]);
   const [selectedTracks, setSelectedTracks] = useState<any[]>([]);
   const [playlistName, setPlaylistName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isCreatingPlaylist, setIsCreatingPlaylist] = useState(false);
+  const [playlistHistory, setPlaylistHistory] = useState<any[]>([]);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const router = useRouter();
+  const supabase = createClient();
+
+  useEffect(() => {
+    const fetchSupabaseUser = async () => {
+      try {
+        console.log("🔍 Checking Supabase session...");
+        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+
+        if (sessionError) {
+          console.error("❌ Error fetching Supabase session:", sessionError);
+          setIsCheckingAuth(false);
+          return;
+        }
+
+        if (!sessionData?.session) {
+          console.warn("⚠️ No active session found");
+          setIsCheckingAuth(false);
+          return;
+        }
+
+        console.log("✅ Active session found, fetching user data...");
+        const { data: userData, error: userError } = await supabase.auth.getUser();
+        
+        if (userError) {
+          console.error("❌ Error fetching user data:", userError);
+          setIsCheckingAuth(false);
+          return;
+        }
+
+        if (userData?.user) {
+          setSupabaseUserId(userData.user.id);
+          console.log("✅ Supabase User ID set:", userData.user.id);
+        } else {
+          console.warn("⚠️ No user found in Supabase auth");
+        }
+      } catch (error) {
+        console.error("❌ Unexpected error in fetchSupabaseUser:", error);
+      } finally {
+        setIsCheckingAuth(false);
+      }
+    };
+
+    fetchSupabaseUser();
+
+    // Set up auth state change listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log("🔄 Auth state changed:", event);
+      if (event === 'SIGNED_IN' && session?.user) {
+        setSupabaseUserId(session.user.id);
+        console.log("✅ User signed in, ID set:", session.user.id);
+      } else if (event === 'SIGNED_OUT') {
+        setSupabaseUserId(null);
+        console.log("👋 User signed out");
+        router.push('/login');
+      }
+    });
+
+    // Cleanup subscription on unmount
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [setSupabaseUserId, router]);
 
   useEffect(() => {
     async function fetchUserProfile() {
@@ -112,36 +188,184 @@ export default function PlaylistGenerator() {
     }
   };
 
-  const handleLogout = () => {
-    setToken(null);
-    setUserId('');
-    setUserName('');
-    setTracks([]);
-    setSelectedTracks([]);
-    setPlaylistName('');
-    router.push('/');
+  const handleLogout = async () => {
+    try {
+      // Sign out from Supabase
+      const { error: supabaseError } = await supabase.auth.signOut();
+      if (supabaseError) throw supabaseError;
+
+      // Clear Spotify state
+      setToken(null);
+      setUserId('');
+      setUserName('');
+      setTracks([]);
+      setSelectedTracks([]);
+      setPlaylistName('');
+      setSupabaseUserId(null);
+      
+      router.push('/');
+    } catch (error) {
+      console.error('Error during logout:', error);
+      toast.error('Error logging out. Please try again.');
+    }
   };
 
   const goToArtistPlaylistGenerator = () => {
     router.push('/artist-playlist-generator');
   };
 
+  const fetchPlaylistHistory = async () => {
+    console.log("🔍 Fetching playlist history...");
+    console.log("Current supabaseUserId:", supabaseUserId);
+    
+    if (!supabaseUserId) {
+      console.warn("❌ No Supabase user ID found");
+      // Try to refresh the Supabase session
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (error) throw error;
+        
+        if (session?.user) {
+          setSupabaseUserId(session.user.id);
+          console.log("✅ Refreshed Supabase User ID:", session.user.id);
+          // Retry fetching playlist history
+          await fetchPlaylistHistory();
+          return;
+        }
+      } catch (error) {
+        console.error("⚠️ Error refreshing Supabase session:", error);
+      }
+      
+      toast.error('Please log in to view your playlist history');
+      return;
+    }
+    
+    setIsLoadingHistory(true);
+    try {
+      console.log("🌐 Making API request to fetch playlists...");
+      const response = await fetch(`/api/get-user-playlists?supabaseUserId=${supabaseUserId}`);
+      console.log("📥 Response status:", response.status);
+      
+      const data = await response.json();
+      console.log("📦 Response data:", data);
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to fetch playlist history');
+      }
+      
+      setPlaylistHistory(data);
+      console.log("✅ Successfully set playlist history");
+    } catch (error) {
+      console.error("❌ Error fetching playlist history:", error);
+      toast.error(error instanceof Error ? error.message : 'Failed to fetch playlist history');
+    } finally {
+      setIsLoadingHistory(false);
+    }
+  };
+
+  // Show loading state while checking auth
+  if (isCheckingAuth) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-[#1DB954] via-[#121212] to-[#000000]">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-white" />
+          <p className="text-white">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show login prompt if no session
+  if (!supabaseUserId) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-[#1DB954] via-[#121212] to-[#000000]">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-white mb-4">Please log in to continue</h1>
+          <button
+            onClick={() => router.push('/login')}
+            className="bg-[#1DB954] hover:bg-[#1ed760] text-white px-6 py-2 rounded-md transition-all duration-300"
+          >
+            Log in
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <main className="relative flex min-h-screen flex-col bg-gradient-to-b from-[#1DB954] via-[#121212] to-[#000000] text-white p-10">
       {/* Header Section */}
       <div className="absolute top-5 left-5 right-5 flex justify-between items-center p-4">
         <div className="flex flex-col items-start gap-2">
-          <Image src="/images/Mixify-logo.png" alt="Mixify Logo" width={160} height={50} className="ml-4 mb-4" />
+          <Image 
+            src="/images/Mixify-logo.png" 
+            alt="Mixify Logo" 
+            width={160} 
+            height={50} 
+            className="ml-4 mb-4 w-auto h-auto" 
+            priority
+          />
           {userName && (
             <p className="text-gray-300 bg-gray-900 p-3 rounded-xl">Welcome, <span className="font-bold text-[#1DB954]">{userName}</span></p>
           )}
         </div>
-        <button
-          onClick={handleLogout}
-          className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-md transition-all duration-300 hover:scale-105"
-        >
-          Log out
-        </button>
+        <div className="flex gap-4">
+          <Dialog>
+            <DialogTrigger asChild>
+              <button
+                onClick={fetchPlaylistHistory}
+                className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-md transition-all duration-300 hover:scale-105 flex items-center gap-2"
+              >
+                <History className="w-4 h-4" />
+                History
+              </button>
+            </DialogTrigger>
+            <DialogContent className="bg-gray-900 text-white max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>Your Playlist History</DialogTitle>
+                <DialogDescription className="text-gray-400">
+                  View all your previously created playlists and their tracks
+                </DialogDescription>
+              </DialogHeader>
+              <ScrollArea className="h-[60vh]">
+                {isLoadingHistory ? (
+                  <div className="flex justify-center items-center h-32">
+                    <Loader2 className="animate-spin" />
+                  </div>
+                ) : playlistHistory.length === 0 ? (
+                  <p className="text-gray-400 text-center py-4">No playlists found</p>
+                ) : (
+                  <div className="space-y-4">
+                    {playlistHistory.map((playlist) => (
+                      <div key={playlist.id} className="bg-gray-800 p-4 rounded-lg">
+                        <h3 className="text-lg font-semibold mb-2">{playlist.title}</h3>
+                        <p className="text-sm text-gray-400 mb-2">
+                          Created on: {new Date(playlist.created_at).toLocaleDateString()}
+                        </p>
+                        <div className="space-y-2">
+                          {playlist.playlist_songs?.map((song: any) => (
+                            <div key={song.song_id} className="flex items-center gap-2 text-sm">
+                              <span className="text-gray-300">•</span>
+                              <span>{song.songs.title}</span>
+                              <span className="text-gray-400">by</span>
+                              <span>{song.songs.artists.name}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </ScrollArea>
+            </DialogContent>
+          </Dialog>
+          <button
+            onClick={handleLogout}
+            className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-md transition-all duration-300 hover:scale-105"
+          >
+            Log out
+          </button>
+        </div>
       </div>
 
       {/* Hero Section */}
