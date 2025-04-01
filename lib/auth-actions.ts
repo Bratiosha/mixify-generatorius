@@ -14,15 +14,34 @@ export async function login(formData: FormData) {
     password: formData.get("password") as string,
   };
 
-  const { error } = await supabase.auth.signInWithPassword(data);
+  try {
+    const { error, data: signInData } = await supabase.auth.signInWithPassword(data);
 
-  if (error) {
-    redirect("/error");
+    if (error) {
+      return { 
+        success: false, 
+        error: "Invalid email or password" 
+      };
+    }
+
+    if (signInData?.user) {
+      revalidatePath("/", "layout");
+      return { 
+        success: true, 
+        message: "Successfully logged in!" 
+      };
+    }
+
+    return { 
+      success: false, 
+      error: "Failed to log in" 
+    };
+  } catch (error: any) {
+    return { 
+      success: false, 
+      error: error.message || "An unexpected error occurred" 
+    };
   }
-  
-
-  revalidatePath("/", "layout");
-  redirect("/");
 }
 
 export async function signup(formData: FormData) {
@@ -37,30 +56,49 @@ export async function signup(formData: FormData) {
     password: formData.get("password") as string,
     options: {
       data: {
-        full_name: `${firstName + " " + lastName}`,
-        email: formData.get("email") as string,
+        full_name: `${firstName} ${lastName}`,
       },
+      emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
     },
   };
 
-  const { error } = await supabase.auth.signUp(data);
+  try {
+    const { error, data: signUpData } = await supabase.auth.signUp(data);
 
-  if (error) {
-    redirect("/error");
+    if (error) {
+      // Handle rate limit error specifically
+      if (error.message.includes("rate limit")) {
+        return { 
+          success: false, 
+          error: "Too many attempts. Please wait a few minutes before trying again." 
+        };
+      }
+      return { 
+        success: false, 
+        error: error.message 
+      };
+    }
+
+    if (signUpData?.user) {
+      return { 
+        success: true, 
+        message: "Please check your email to verify your account." 
+      };
+    }
+
+    return { 
+      success: false, 
+      error: "Failed to create account" 
+    };
+  } catch (error: any) {
+    return { 
+      success: false, 
+      error: error.message || "An unexpected error occurred" 
+    };
   }
-
-  revalidatePath("/", "layout");
-  redirect("/");
 }
 
 export async function signout() {
-  const supabase = createClient();
-  const { error } = await supabase.auth.signOut();
-  if (error) {
-    console.log(error);
-    redirect("/error");
-  }
-
   redirect("/logout");
 }
 
@@ -103,4 +141,24 @@ export async function signInWithSpotify(access_token: string, refresh_token: str
 
   revalidatePath("/", "layout");
   redirect("/liked-tracks");
+}
+
+export async function resetPassword(email: string) {
+  const supabase = createClient();
+  
+  try {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/reset-password`,
+    });
+
+    if (error) {
+      console.error('Error resetting password:', error);
+      throw error;
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error in resetPassword:', error);
+    throw error;
+  }
 }

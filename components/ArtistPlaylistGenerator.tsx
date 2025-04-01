@@ -11,7 +11,7 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import ClientWrapper from "@/components/ClientWrapper";
-import { Loader2, X, History, Search, Filter, ArrowUpDown } from "lucide-react";
+import { Loader2, X, History, Search, Filter, ArrowUpDown, Calendar } from "lucide-react";
 import Image from "next/image";
 import { useAuthStore } from "@/store/store"; // Import the Zustand store
 import { useSupabaseAuthStore } from "@/store/supabaseAuthStore";
@@ -125,6 +125,10 @@ export default function ArtistPlaylistGenerator() {
   const [isSearchingByGenre, setIsSearchingByGenre] = useState(false);
   const router = useRouter(); // Use the correct router
   const supabase = createClient();
+  const [dateRange, setDateRange] = useState<{ start: string; end: string }>({
+    start: '',
+    end: ''
+  });
 
   useEffect(() => {
     const fetchSupabaseUser = async () => {
@@ -265,6 +269,23 @@ export default function ArtistPlaylistGenerator() {
       );
     }
 
+    if (dateRange.start || dateRange.end) {
+      filtered = filtered.filter(playlist => {
+        const playlistDate = new Date(playlist.created_at);
+        const startDate = dateRange.start ? new Date(dateRange.start) : null;
+        const endDate = dateRange.end ? new Date(dateRange.end) : null;
+
+        if (startDate && endDate) {
+          return playlistDate >= startDate && playlistDate <= endDate;
+        } else if (startDate) {
+          return playlistDate >= startDate;
+        } else if (endDate) {
+          return playlistDate <= endDate;
+        }
+        return true;
+      });
+    }
+
     filtered.sort((a, b) => {
       const dateA = new Date(a.created_at).getTime();
       const dateB = new Date(b.created_at).getTime();
@@ -276,7 +297,7 @@ export default function ArtistPlaylistGenerator() {
 
   useEffect(() => {
     handleFilterAndSort();
-  }, [searchQuery, sortOrder, playlistHistory]);
+  }, [searchQuery, sortOrder, playlistHistory, dateRange]);
 
   const extractUniqueGenres = (artists: Artist[]) => {
     const genres = new Set<string>();
@@ -440,13 +461,7 @@ export default function ArtistPlaylistGenerator() {
   };
 
   const handleLogout = () => {
-    setToken(null); // Use Zustand's setToken
-    setUserId(""); // Use Zustand's setUserId
-    setUserName(""); // Use Zustand's setUserName
-    setTopTracks([]);
-    setSelectedArtists([]);
-    setPlaylistName("");
-    router.push("/");
+    router.push("/logout");
   };
   const goToPlaylistGenerator = () => {
     router.push("/PlayListGenerator");
@@ -465,19 +480,7 @@ export default function ArtistPlaylistGenerator() {
 
   if (!supabaseUserId) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-[#1DB954] via-[#121212] to-[#000000]">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-white mb-4">
-            Please log in to continue
-          </h1>
-          <button
-            onClick={() => router.push("/login")}
-            className="bg-[#1DB954] hover:bg-[#1ed760] text-white px-6 py-2 rounded-md transition-all duration-300"
-          >
-            Log in
-          </button>
-        </div>
-      </div>
+      router.push('/login')
     );
   }
 
@@ -540,6 +543,63 @@ export default function ArtistPlaylistGenerator() {
                     {sortOrder === "asc" ? "Oldest First" : "Newest First"}
                   </button>
                 </div>
+
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Calendar className="w-5 h-5 text-[#1DB954]" />
+                      <h2 className="text-lg font-semibold text-white">Filter by Date</h2>
+                    </div>
+                    {(dateRange.start || dateRange.end) && (
+                      <button
+                        onClick={() => setDateRange({ start: '', end: '' })}
+                        className="text-sm text-gray-400 hover:text-white flex items-center gap-1 transition-colors"
+                      >
+                        <X className="w-4 h-4" />
+                        Clear filter
+                      </button>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="flex flex-col gap-1">
+                      <label className="text-sm text-gray-400">From</label>
+                      <div className="relative">
+                        <input
+                          type="date"
+                          value={dateRange.start}
+                          onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
+                          className="w-full bg-gray-800 text-white px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-[#1DB954] border border-gray-700"
+                          max={dateRange.end || undefined}
+                        />
+                        <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                          <Calendar className="w-4 h-4 text-gray-400" />
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-sm text-gray-400">To</label>
+                      <div className="relative">
+                        <input
+                          type="date"
+                          value={dateRange.end}
+                          onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
+                          className="w-full bg-gray-800 text-white px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-[#1DB954] border border-gray-700"
+                          min={dateRange.start || undefined}
+                        />
+                        <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                          <Calendar className="w-4 h-4 text-gray-400" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  {(dateRange.start || dateRange.end) && (
+                    <div className="text-sm text-gray-400 mt-2">
+                      Showing playlists from {dateRange.start ? new Date(dateRange.start).toLocaleDateString() : 'the beginning'} 
+                      {dateRange.end ? ` to ${new Date(dateRange.end).toLocaleDateString()}` : ' onwards'}
+                    </div>
+                  )}
+                </div>
+
                 <div className="text-sm text-gray-400">
                   Found {filteredPlaylists.length} playlist
                   {filteredPlaylists.length !== 1 ? "s" : ""}

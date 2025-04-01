@@ -52,9 +52,7 @@ const LoginButton = () => {
     }
   };
 
-  const handleSpotifyLogin = () => {
-    router.push("/spotify-login"); // Redirect to Spotify OAuth flow
-  };
+  
 
   if (loading) {
     return <Button disabled>Loading...</Button>;
