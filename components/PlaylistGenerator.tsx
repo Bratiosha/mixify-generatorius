@@ -2,12 +2,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { searchTracks, createPlaylist, addTracksToPlaylist, getUserProfile } from '@/app/(auth)/auth/spotifyApi';
+import { searchTracks, createPlaylist, addTracksToPlaylist, getUserProfile, searchTracksByGenre } from '@/app/(auth)/auth/spotifyApi';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
 import ClientWrapper from '@/components/ClientWrapper';
 import { useRouter } from 'next/navigation';
-import { Loader2, X, History } from 'lucide-react';
+import { Loader2, X, History, Search, Filter, ArrowUpDown } from 'lucide-react';
 import Image from 'next/image';
 import { useAuthStore } from '@/store/store';
 import { useSupabaseAuthStore } from '@/store/supabaseAuthStore';
@@ -31,8 +31,23 @@ export default function PlaylistGenerator() {
   const [isLoading, setIsLoading] = useState(false);
   const [isCreatingPlaylist, setIsCreatingPlaylist] = useState(false);
   const [playlistHistory, setPlaylistHistory] = useState<any[]>([]);
+  const [filteredPlaylists, setFilteredPlaylists] = useState<any[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const [selectedGenre, setSelectedGenre] = useState<string>("");
+  const [searchMode, setSearchMode] = useState<"track" | "genre">("track");
+  const [availableGenres] = useState<string[]>([
+    "pop", "rock", "hip hop", "jazz", "classical", "electronic", "r&b", "country",
+    "metal", "folk", "blues", "reggae", "latin", "indie", "alternative", "rap",
+    "dance", "house", "techno", "punk", "soul", "funk", "disco", "reggaeton", 
+    "drum & bass", "dnb", "edm", "trance", "hardstyle", "hardcore",
+    "industrial", "ambient", "dubstep", "garage", "grime", "trap", "future bass",
+    "progressive house", "deep house", "tech house", "minimal", "psytrance",
+    "breakbeat", "jungle", "uk garage", "bass music", "idm", "electro", "synthwave"
+  ]);
+  const [isSearchingByGenre, setIsSearchingByGenre] = useState(false);
   const router = useRouter();
   const supabase = createClient();
 
@@ -114,8 +129,13 @@ export default function PlaylistGenerator() {
   }, [token, setUserId, setUserName]);
 
   const handleSearch = async () => {
-    if (query.trim() === '') {
+    if (searchMode === "track" && query.trim() === '') {
       toast.error('Please enter a search query.');
+      return;
+    }
+
+    if (searchMode === "genre" && !selectedGenre) {
+      toast.error('Please select a genre.');
       return;
     }
 
@@ -126,8 +146,14 @@ export default function PlaylistGenerator() {
 
     setIsLoading(true);
     try {
-      const results = await searchTracks(query, token);
-      setTracks(results);
+      if (searchMode === "track") {
+        const results = await searchTracks(query, token);
+        setTracks(results);
+      } else {
+        const results = await searchTracksByGenre(selectedGenre, token);
+        setTracks(results);
+        setIsSearchingByGenre(true);
+      }
     } catch (error) {
       console.error('Error searching tracks:', error);
       toast.error('Failed to search tracks. Please try again.');
@@ -160,9 +186,38 @@ export default function PlaylistGenerator() {
   
     setIsCreatingPlaylist(true);
     try {
+      // Create playlist in Spotify
       const playlist = await createPlaylist(userId, playlistName, token);
       const trackUris = selectedTracks.map((t) => t.uri);
       await addTracksToPlaylist(playlist.id, trackUris, token);
+
+      // Prepare playlist data for database
+      const playlistData = {
+        supabaseUserId,
+        userId: userId, // Spotify user ID
+        playlist: {
+          title: playlistName,
+          spotify_playlist_id: playlist.id,
+          tracks: selectedTracks.map(track => ({
+            title: track.name,
+            artist: track.artists[0].name,
+            duration: 0, // You might want to add duration if available in your track data
+          })),
+        },
+      };
+
+      // Save playlist to database
+      const response = await fetch('/api/save-playlist', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(playlistData),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to save playlist to database');
+      }
   
       toast.success(`🎉 Playlist "${playlistName}" created!`, {
         description: `Added ${selectedTracks.length} tracks.`,
@@ -178,6 +233,7 @@ export default function PlaylistGenerator() {
       // Navigate to the new page
       router.push('/playlist-details');
   
+      // Clear form
       setPlaylistName('');
       setSelectedTracks([]);
     } catch (error) {
@@ -220,7 +276,6 @@ export default function PlaylistGenerator() {
     
     if (!supabaseUserId) {
       console.warn("❌ No Supabase user ID found");
-      // Try to refresh the Supabase session
       try {
         const { data: { session }, error } = await supabase.auth.getSession();
         if (error) throw error;
@@ -228,7 +283,6 @@ export default function PlaylistGenerator() {
         if (session?.user) {
           setSupabaseUserId(session.user.id);
           console.log("✅ Refreshed Supabase User ID:", session.user.id);
-          // Retry fetching playlist history
           await fetchPlaylistHistory();
           return;
         }
@@ -254,6 +308,7 @@ export default function PlaylistGenerator() {
       }
       
       setPlaylistHistory(data);
+      setFilteredPlaylists(data);
       console.log("✅ Successfully set playlist history");
     } catch (error) {
       console.error("❌ Error fetching playlist history:", error);
@@ -262,6 +317,32 @@ export default function PlaylistGenerator() {
       setIsLoadingHistory(false);
     }
   };
+
+  const handleFilterAndSort = () => {
+    let filtered = [...playlistHistory];
+
+    if (searchQuery) {
+      filtered = filtered.filter(playlist => 
+        playlist.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        playlist.playlist_songs?.some((song: any) => 
+          song.songs.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          song.songs.artists.name.toLowerCase().includes(searchQuery.toLowerCase())
+        )
+      );
+    }
+
+    filtered.sort((a, b) => {
+      const dateA = new Date(a.created_at).getTime();
+      const dateB = new Date(b.created_at).getTime();
+      return sortOrder === 'asc' ? dateA - dateB : dateB - dateA;
+    });
+
+    setFilteredPlaylists(filtered);
+  };
+
+  useEffect(() => {
+    handleFilterAndSort();
+  }, [searchQuery, sortOrder, playlistHistory]);
 
   // Show loading state while checking auth
   if (isCheckingAuth) {
@@ -327,16 +408,44 @@ export default function PlaylistGenerator() {
                   View all your previously created playlists and their tracks
                 </DialogDescription>
               </DialogHeader>
+              
+              <div className="flex flex-col gap-4 mb-4">
+                <div className="flex items-center gap-2">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Search playlists or songs..."
+                      className="w-full bg-gray-800 text-white pl-10 pr-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-green-400"
+                    />
+                  </div>
+                  <button
+                    onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
+                    className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-md transition-all duration-300 hover:scale-105 flex items-center gap-2"
+                  >
+                    <ArrowUpDown className="w-4 h-4" />
+                    {sortOrder === 'asc' ? 'Oldest First' : 'Newest First'}
+                  </button>
+                </div>
+                <div className="text-sm text-gray-400">
+                  Found {filteredPlaylists.length} playlist{filteredPlaylists.length !== 1 ? 's' : ''}
+                </div>
+              </div>
+
               <ScrollArea className="h-[60vh]">
                 {isLoadingHistory ? (
                   <div className="flex justify-center items-center h-32">
                     <Loader2 className="animate-spin" />
                   </div>
-                ) : playlistHistory.length === 0 ? (
-                  <p className="text-gray-400 text-center py-4">No playlists found</p>
+                ) : filteredPlaylists.length === 0 ? (
+                  <p className="text-gray-400 text-center py-4">
+                    {searchQuery ? 'No playlists found matching your search' : 'No playlists found'}
+                  </p>
                 ) : (
                   <div className="space-y-4">
-                    {playlistHistory.map((playlist) => (
+                    {filteredPlaylists.map((playlist) => (
                       <div key={playlist.id} className="bg-gray-800 p-4 rounded-lg">
                         <h3 className="text-lg font-semibold mb-2">{playlist.title}</h3>
                         <p className="text-sm text-gray-400 mb-2">
@@ -402,27 +511,116 @@ export default function PlaylistGenerator() {
       >
         <div className="mt-20 max-w-6xl mx-auto">
           {/* Search Bar */}
-          <div className="flex items-center gap-2 mb-6">
-            <input
-              type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search tracks..."
-              className="flex-1 bg-gray-800 text-white px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-green-400"
-            />
-            <button
-              onClick={handleSearch}
-              disabled={isLoading}
-              className="bg-green-500 hover:bg-green-600 px-4 py-2 rounded-md transition-all duration-300 hover:scale-105"
-            >
-              {isLoading ? <Loader2 className="animate-spin" /> : '🔍'}
-            </button>
+          <div className="flex flex-col gap-4 mb-6">
+            <div className="flex items-center gap-2">
+              <div className="flex gap-2 bg-gray-800 p-1 rounded-md">
+                <button
+                  onClick={() => {
+                    setSearchMode("track");
+                    setQuery("");
+                    setSelectedGenre("");
+                    setTracks([]);
+                    setIsSearchingByGenre(false);
+                  }}
+                  className={`px-4 py-2 rounded-md transition-all duration-300 ${
+                    searchMode === "track"
+                      ? "bg-green-500 text-white"
+                      : "text-gray-400 hover:text-white"
+                  }`}
+                >
+                  Search by Track
+                </button>
+                <button
+                  onClick={() => {
+                    setSearchMode("genre");
+                    setQuery("");
+                    setSelectedGenre("");
+                    setTracks([]);
+                    setIsSearchingByGenre(false);
+                  }}
+                  className={`px-4 py-2 rounded-md transition-all duration-300 ${
+                    searchMode === "genre"
+                      ? "bg-green-500 text-white"
+                      : "text-gray-400 hover:text-white"
+                  }`}
+                >
+                  Search by Genre
+                </button>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              {searchMode === "track" ? (
+                <>
+                  <input
+                    type="text"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder="Search tracks..."
+                    className="flex-1 bg-gray-800 text-white px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-green-400"
+                  />
+                  <button
+                    onClick={handleSearch}
+                    disabled={isLoading || !query.trim()}
+                    className="bg-green-500 hover:bg-green-600 px-4 py-2 rounded-md transition-all duration-300 hover:scale-105"
+                  >
+                    {isLoading ? <Loader2 className="animate-spin" /> : "🔍"}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <select
+                    value={selectedGenre}
+                    onChange={(e) => setSelectedGenre(e.target.value)}
+                    className="flex-1 bg-gray-800 text-white px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-green-400"
+                  >
+                    <option value="">Select a genre</option>
+                    {availableGenres.map((genre) => (
+                      <option key={genre} value={genre}>
+                        {genre.charAt(0).toUpperCase() + genre.slice(1)}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    onClick={handleSearch}
+                    disabled={isLoading || !selectedGenre}
+                    className="bg-green-500 hover:bg-green-600 px-4 py-2 rounded-md transition-all duration-300 hover:scale-105"
+                  >
+                    {isLoading ? <Loader2 className="animate-spin" /> : "🔍"}
+                  </button>
+                </>
+              )}
+              {(query || selectedGenre) && (
+                <button
+                  onClick={() => {
+                    setQuery("");
+                    setSelectedGenre("");
+                    setTracks([]);
+                    setIsSearchingByGenre(false);
+                  }}
+                  className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-md transition-all duration-300 hover:scale-105"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Search Results */}
           <div className="mb-6">
-            <h2 className="text-xl font-semibold mb-4">Results</h2>
-            {tracks.length === 0 && <p className="text-gray-400">🔎 Enter a search query</p>}
+            <h2 className="text-xl font-semibold mb-4">
+              {isSearchingByGenre
+                ? `Tracks in ${selectedGenre.charAt(0).toUpperCase() + selectedGenre.slice(1)}`
+                : query
+                ? `Results for "${query}"`
+                : "Tracks"}
+            </h2>
+            {tracks.length === 0 && (
+              <p className="text-gray-400">
+                {searchMode === "genre"
+                  ? "Select a genre to see tracks"
+                  : "Enter a track name to search"}
+              </p>
+            )}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {tracks.map((track) => (
                 <div

@@ -55,7 +55,7 @@ export default function PlaylistDetails() {
       return;
     }
   
-    // Prevent duplicate saves per playlist
+    // Prevent duplicate fetches per playlist
     if (!supabaseUserId || hasFetched.current === playlistInfo.id) {
       return;
     }
@@ -64,10 +64,7 @@ export default function PlaylistDetails() {
       try {
         const details = await getPlaylistDetails(playlistInfo.id, token);
         setPlaylistDetails(details);
-  
-        // Save playlist details to the database
-        await savePlaylistToDatabase(details);
-        hasFetched.current = playlistInfo.id; // ✅ Track last saved playlist
+        hasFetched.current = playlistInfo.id; // Track last fetched playlist
       } catch (error) {
         console.error('Error fetching playlist details:', error);
         toast.error('Failed to fetch playlist details. Please try again.');
@@ -78,51 +75,9 @@ export default function PlaylistDetails() {
   }, [playlistInfo?.id, token, supabaseUserId]);
   
 
-  const savePlaylistToDatabase = async (playlistDetails: any) => {
-    try {
-      if (!supabaseUserId) {
-        throw new Error('Supabase User ID is not available.');
-      }
-
-      const payload = {
-        supabaseUserId,
-        userId,
-        playlist: {
-          spotify_playlist_id: playlistDetails.id,
-          title: playlistDetails.name,
-          tracks: playlistDetails.tracks.items.map((item: any) => ({
-            title: item.track.name,
-            artist: item.track.artists[0].name,
-            duration: item.track.duration_ms,
-            spotify_track_id: item.track.id,
-          })),
-        },
-      };
-
-      console.log('Payload being sent to the database:', JSON.stringify(payload, null, 2));
-
-      const response = await fetch('/api/save-playlist', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to save playlist to database');
-      }
-
-      toast.success('Playlist saved to database successfully!');
-    } catch (error) {
-      console.error('Error saving playlist to database:', error);
-      toast.error('Failed to save playlist to database. Please try again.');
-    }
-  };
-
   const handleCreateAnotherPlaylist = () => {
-    hasFetched.current = ''; // ✅ Reset for new playlist
-      router.push('/PlayListGenerator'); // Fallback to ensure correct navigation
+    hasFetched.current = ''; // Reset for new playlist
+    router.push('/PlayListGenerator');
   };
   
 

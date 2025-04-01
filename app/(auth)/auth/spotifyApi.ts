@@ -91,6 +91,34 @@ export const searchArtists = async (query: string, token: string) => {
 };
 
 /**
+ * Search for artists by genre.
+ */
+export const searchArtistsByGenre = async (genre: string, token: string) => {
+  try {
+    const response = await fetch(
+      `https://api.spotify.com/v1/search?q=genre:${encodeURIComponent(genre)}&type=artist`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error("Spotify API Error:", errorData);
+      throw new Error(`Failed to search artists by genre: ${errorData.error.message}`);
+    }
+
+    const data = await response.json();
+    return data.artists.items;
+  } catch (error) {
+    console.error("Error in searchArtistsByGenre:", error);
+    throw new Error("Failed to search artists by genre. Please try again.");
+  }
+};
+
+/**
  * Fetch the top tracks of an artist.
  */
 export async function getArtistTopTracks(artistId: string, token: string, market = "US") {
@@ -138,3 +166,31 @@ export async function getPlaylistDetails(playlistId: string, token: string) {
     }
   }
 }
+
+/**
+ * Search for tracks by genre.
+ */
+export const searchTracksByGenre = async (genre: string, token: string) => {
+  try {
+    const response = await fetch(
+      `https://api.spotify.com/v1/search?q=genre:${encodeURIComponent(genre)}&type=track`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error("Spotify API Error:", errorData);
+      throw new Error(`Failed to search tracks by genre: ${errorData.error.message}`);
+    }
+
+    const data = await response.json();
+    return data.tracks.items;
+  } catch (error) {
+    console.error("Error in searchTracksByGenre:", error);
+    throw new Error("Failed to search tracks by genre. Please try again.");
+  }
+};
