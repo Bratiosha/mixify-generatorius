@@ -46,6 +46,7 @@ interface Track {
 }
 
 export default function ArtistPlaylistGenerator() {
+  console.log("🔄 Initializing ArtistPlaylistGenerator component");
   const {
     token,
     userId,
@@ -54,8 +55,12 @@ export default function ArtistPlaylistGenerator() {
     setUserId,
     setUserName,
     setPlaylistInfo,
-  } = useAuthStore(); // Use Zustand store
+  } = useAuthStore();
+  console.log("🔑 Current auth state:", { token, userId, userName });
+
   const { supabaseUserId, setSupabaseUserId } = useSupabaseAuthStore();
+  console.log("🔑 Current Supabase user ID:", supabaseUserId);
+
   const [query, setQuery] = useState("");
   const [artists, setArtists] = useState<Artist[]>([]);
   const [selectedArtists, setSelectedArtists] = useState<Artist[]>([]);
@@ -130,7 +135,24 @@ export default function ArtistPlaylistGenerator() {
     end: ''
   });
 
+  console.log("📊 Current state:", {
+    query,
+    artistsCount: artists.length,
+    selectedArtistsCount: selectedArtists.length,
+    topTracksCount: topTracks.length,
+    playlistName,
+    isLoading,
+    isCreatingPlaylist,
+    playlistHistoryCount: playlistHistory.length,
+    searchQuery,
+    sortOrder,
+    selectedGenre,
+    searchMode,
+    isSearchingByGenre
+  });
+
   useEffect(() => {
+    console.log("🔄 Running initial auth check effect");
     const fetchSupabaseUser = async () => {
       try {
         console.log("🔍 Checking Supabase session...");
@@ -169,6 +191,7 @@ export default function ArtistPlaylistGenerator() {
         console.error("❌ Unexpected error in fetchSupabaseUser:", error);
       } finally {
         setIsCheckingAuth(false);
+        console.log("🔄 Supabase session check complete");
       }
     };
 
@@ -190,6 +213,7 @@ export default function ArtistPlaylistGenerator() {
 
     return () => {
       subscription.unsubscribe();
+      console.log("🔄 Auth subscription unsubscribed");
     };
   }, [setSupabaseUserId, router]);
 
@@ -198,31 +222,13 @@ export default function ArtistPlaylistGenerator() {
     console.log("Current supabaseUserId:", supabaseUserId);
 
     if (!supabaseUserId) {
-      console.warn("❌ No Supabase user ID found");
-      try {
-        const {
-          data: { session },
-          error,
-        } = await supabase.auth.getSession();
-        if (error) throw error;
-
-        if (session?.user) {
-          setSupabaseUserId(session.user.id);
-          console.log("✅ Refreshed Supabase User ID:", session.user.id);
-          await fetchPlaylistHistory();
-          return;
-        }
-      } catch (error) {
-        console.error("⚠️ Error refreshing Supabase session:", error);
-      }
-
-      toast.error("Please log in to view your playlist history");
+      console.warn("⚠️ No supabaseUserId found, cannot fetch playlist history");
       return;
     }
 
-    setIsLoadingHistory(true);
     try {
-      console.log("🌐 Making API request to fetch playlists...");
+      setIsLoadingHistory(true);
+      console.log("🔄 Loading playlist history...");
       const response = await fetch(
         `/api/get-user-playlists?supabaseUserId=${supabaseUserId}`
       );
@@ -247,10 +253,13 @@ export default function ArtistPlaylistGenerator() {
       );
     } finally {
       setIsLoadingHistory(false);
+      console.log("🔄 Playlist history fetch complete");
     }
   };
 
   const handleFilterAndSort = () => {
+    console.log("🔄 Filtering and sorting playlists...");
+    console.log("Current filter criteria:", { searchQuery, sortOrder });
     let filtered = [...playlistHistory];
 
     if (searchQuery) {
@@ -293,64 +302,76 @@ export default function ArtistPlaylistGenerator() {
     });
 
     setFilteredPlaylists(filtered);
+    console.log("🔄 Filter and sort complete");
   };
 
   useEffect(() => {
+    console.log("🔄 Running filter and sort effect");
     handleFilterAndSort();
   }, [searchQuery, sortOrder, playlistHistory, dateRange]);
 
   const extractUniqueGenres = (artists: Artist[]) => {
+    console.log("🔄 Extracting unique genres from artists");
     const genres = new Set<string>();
     artists.forEach((artist) => {
       artist.genres.forEach((genre) => genres.add(genre));
     });
-    return Array.from(genres).sort();
+    const uniqueGenres = Array.from(genres).sort();
+    console.log("📊 Unique genres found:", uniqueGenres);
+    return uniqueGenres;
   };
 
   const handleSearch = async () => {
-    if (query.trim() === "") {
-      toast.error("Please enter an artist name.");
+    console.log("🔍 Initiating artist search with query:", query);
+    if (!query.trim()) {
+      console.warn("⚠️ Empty search query");
       return;
     }
-
     if (!token) {
+      console.warn("⚠️ No token found");
       toast.error("You are not logged in. Please connect to Spotify.");
       return;
     }
-
-    setIsLoading(true);
     try {
+      setIsLoading(true);
+      console.log("🔄 Searching for artists...");
       const results = await searchArtists(query, token);
+      console.log("📊 Search results:", results);
       setArtists(results);
     } catch (error) {
-      console.error("Error searching artists:", error);
+      console.error("❌ Error searching for artists:", error);
       toast.error("Failed to search artists. Please try again.");
     } finally {
       setIsLoading(false);
+      console.log("🔄 Artist search complete");
     }
   };
 
   const handleGenreSearch = async () => {
+    console.log("🔍 Initiating genre search with selected genre:", selectedGenre);
     if (!selectedGenre) {
-      toast.error("Please select a genre.");
+      console.warn("⚠️ No genre selected");
       return;
     }
-
     if (!token) {
+      console.warn("⚠️ No token found");
       toast.error("You are not logged in. Please connect to Spotify.");
       return;
     }
-
-    setIsLoading(true);
-    setIsSearchingByGenre(true);
     try {
+      setIsLoading(true);
+      setIsSearchingByGenre(true);
+      console.log("🔄 Searching for artists by genre...");
       const results = await searchArtistsByGenre(selectedGenre, token);
+      console.log("📊 Genre search results:", results);
       setArtists(results);
     } catch (error) {
-      console.error("Error searching artists by genre:", error);
+      console.error("❌ Error searching for artists by genre:", error);
       toast.error("Failed to search artists by genre. Please try again.");
     } finally {
       setIsLoading(false);
+      setIsSearchingByGenre(false);
+      console.log("🔄 Genre search complete");
     }
   };
 
@@ -360,63 +381,78 @@ export default function ArtistPlaylistGenerator() {
   });
 
   const toggleArtistSelection = async (artist: Artist) => {
+    console.log("🔄 Toggling artist selection for:", artist.name);
     if (selectedArtists.some((a) => a.id === artist.id)) {
+      console.log("❌ Removing artist from selection");
       setSelectedArtists((prev) => prev.filter((a) => a.id !== artist.id));
       setTopTracks((prev) =>
         prev.filter((track) => track.artists[0].id !== artist.id)
       );
     } else {
+      console.log("✅ Adding artist to selection");
       setSelectedArtists((prev) => [...prev, artist]);
       try {
         if (token) {
+          console.log("🔄 Fetching top tracks for artist:", artist.name);
           const tracks = await getArtistTopTracks(artist.id, token);
+          console.log("📊 Top tracks fetched:", tracks);
           if (tracks.length > 0) {
-            setTopTracks((prev) => [...prev, ...tracks.slice(0, 10)]); // Add top 10 tracks
+            setTopTracks((prev) => [...prev, ...tracks.slice(0, 10)]);
+            console.log("✅ Added top tracks to playlist");
           }
         } else {
+          console.warn("⚠️ No token found");
           toast.error("You are not logged in. Please connect to Spotify.");
         }
       } catch (error) {
-        console.error("Error fetching top tracks:", error);
+        console.error("❌ Error fetching top tracks:", error);
         toast.error(`Failed to fetch top tracks for ${artist.name}.`);
       }
     }
+    console.log("🔄 Artist selection updated");
   };
 
   const handleCreatePlaylist = async () => {
-    if (!playlistName || topTracks.length === 0) {
-      toast.error(
-        "Please enter a playlist name and select at least one artist."
-      );
+    console.log("🎵 Creating playlist with name:", playlistName);
+    if (!playlistName.trim()) {
+      console.warn("⚠️ Playlist name is empty");
       return;
     }
-
+    if (selectedArtists.length === 0) {
+      console.warn("⚠️ No artists selected");
+      return;
+    }
     if (!token || !userId) {
+      console.warn("⚠️ Missing token or userId");
       toast.error("You are not logged in. Please connect to Spotify.");
       return;
     }
-
-    setIsCreatingPlaylist(true);
     try {
+      setIsCreatingPlaylist(true);
+      console.log("🔄 Creating playlist...");
       // Create playlist in Spotify
       const playlist = await createPlaylist(userId, playlistName, token);
+      console.log("✅ Playlist created in Spotify:", playlist);
+      
       const trackUris = topTracks.map((t) => t.uri);
+      console.log("📊 Adding tracks to playlist:", trackUris);
       await addTracksToPlaylist(playlist.id, trackUris, token);
 
       // Prepare playlist data for database
       const playlistData = {
         supabaseUserId,
-        userId: userId, // Spotify user ID
+        userId: userId,
         playlist: {
           title: playlistName,
           spotify_playlist_id: playlist.id,
           tracks: topTracks.map((track) => ({
             title: track.name,
             artist: track.artists[0].name,
-            duration: 0, // You might want to add duration if available in your track data
+            duration: 0,
           })),
         },
       };
+      console.log("📦 Saving playlist data to database:", playlistData);
 
       // Save playlist to database
       const response = await fetch("/api/save-playlist", {
@@ -431,6 +467,7 @@ export default function ArtistPlaylistGenerator() {
         throw new Error("Failed to save playlist to database");
       }
 
+      console.log("✅ Playlist saved to database");
       toast.success(`🎉 Playlist "${playlistName}" created on Spotify!`);
       toast.success("📝 Playlist saved to database", {
         description: `Added ${topTracks.length} tracks to your history.`,
@@ -451,23 +488,28 @@ export default function ArtistPlaylistGenerator() {
       setSelectedArtists([]);
       setTopTracks([]);
     } catch (error) {
-      console.error("Error creating playlist:", error);
+      console.error("❌ Error creating playlist:", error);
       toast.error(
         "❌ Error creating playlist. Please check your Spotify connection."
       );
     } finally {
       setIsCreatingPlaylist(false);
+      console.log("🔄 Playlist creation complete");
     }
   };
 
   const handleLogout = () => {
+    console.log("👋 Logging out user");
     router.push("/logout");
   };
+
   const goToPlaylistGenerator = () => {
+    console.log("🔄 Navigating to Playlist Generator");
     router.push("/PlayListGenerator");
   };
 
   if (isCheckingAuth) {
+    console.log("⏳ Checking authentication...");
     return (
       <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-[#1DB954] via-[#121212] to-[#000000]">
         <div className="text-center">
@@ -479,11 +521,11 @@ export default function ArtistPlaylistGenerator() {
   }
 
   if (!supabaseUserId) {
-    return (
-      router.push('/login')
-    );
+    console.log("⚠️ No Supabase user ID found, redirecting to login");
+    return router.push('/login');
   }
 
+  console.log("🎨 Rendering main component");
   return (
     <main className="relative flex min-h-screen flex-col bg-gradient-to-b from-[#1DB954] via-[#121212] to-[#000000] text-white p-10">
       <div className="absolute top-5 left-5 right-5 flex justify-between items-center p-4">

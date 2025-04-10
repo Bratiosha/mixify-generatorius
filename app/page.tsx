@@ -6,8 +6,9 @@ import Image from "next/image";
 import ClientWrapper from "@/components/ClientWrapper";
 import { motion, useAnimation } from "framer-motion";
 
-
 export default function Home() {
+  console.log("🔄 Initializing Home page component");
+  
   const testimonials = [
     {
       name: "John Doe",
@@ -41,11 +42,21 @@ export default function Home() {
     },
   ];
 
+  console.log("📊 Loaded testimonials:", testimonials.length);
+
   return (
     <main className="relative flex min-h-screen flex-col bg-gradient-to-b from-[#1DB954] via-[#121212] to-[#000000] text-white p-10">
       {/* Header Section */}
       <div className="absolute top-5 left-5 flex flex-col items-start space-y-2 p-4">
-        <Image src="/images/Mixify-logo.png" alt="Mixify Logo" width={160} height={50} className="ml-4 mb-4" />
+        <Image 
+          src="/images/Mixify-logo.png" 
+          alt="Mixify Logo" 
+          width={160} 
+          height={50} 
+          className="ml-4 mb-4"
+          onLoad={() => console.log("✅ Logo image loaded successfully")}
+          onError={(e) => console.error("❌ Error loading logo image:", e)}
+        />
         <UserGreetText />
       </div>
       <div className="absolute top-5 right-5 p-4">
@@ -57,6 +68,7 @@ export default function Home() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.8 }}
+        onAnimationComplete={() => console.log("🎬 Hero section animation completed")}
       >
         <div className="text-center max-w-2xl mx-auto mt-32">
           <h1 className="text-6xl font-extrabold tracking-tight sm:text-7xl">
@@ -73,6 +85,7 @@ export default function Home() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.8, delay: 0.4 }}
+        onAnimationComplete={() => console.log("🎬 Features section animation completed")}
       >
         <div className="mt-20 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto text-center">
           {[
@@ -95,6 +108,7 @@ export default function Home() {
             <div
               key={index}
               className="p-8 bg-gray-800 rounded-lg shadow-lg hover:bg-gray-700 transition-all duration-300 hover:scale-105"
+              onMouseEnter={() => console.log(`🖱️ Hovering over feature: ${feature.title}`)}
             >
               <div className="text-4xl mb-4">{feature.icon}</div>
               <h2 className="text-2xl font-bold text-[#1DB954]">{feature.title}</h2>
@@ -109,6 +123,7 @@ export default function Home() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.8, delay: 0.6 }}
+        onAnimationComplete={() => console.log("🎬 Why Mixify section animation completed")}
       >
         <div className="mt-20 text-center max-w-2xl mx-auto">
           <h2 className="text-3xl font-bold text-[#1DB954]">Why Mixify?</h2>
@@ -133,15 +148,16 @@ export default function Home() {
                 repeat: Infinity, // Loop infinitely
                 ease: "linear", // Smooth linear animation
               }}
+              onAnimationComplete={() => console.log("🎬 Testimonials animation cycle completed")}
             >
               {[...testimonials, ...testimonials].map((testimonial, index) => (
                 <motion.div
                   key={index}
                   className="w-96 p-6 bg-gray-800 rounded-lg shadow-lg flex-shrink-0"
-                  initial={{ opacity: 0, x: -100 }} // Start off-screen to the left
-                  whileInView={{ opacity: 1, x: 0 }} // Fade in when in view
-                  exit={{ opacity: 0, x: 100 }} // Fade out when exiting to the right
-                  transition={{ duration: 1 }} // Smooth fade in/out
+                  initial={{ opacity: 0, x: -100 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 100 }}
+                  transition={{ duration: 1 }}
                 >
                   <div className="flex items-center space-x-4">
                     <Image
@@ -150,6 +166,8 @@ export default function Home() {
                       width={50}
                       height={50}
                       className="rounded-full"
+                      onLoad={() => console.log(`✅ Avatar loaded for ${testimonial.name}`)}
+                      onError={(e) => console.error(`❌ Error loading avatar for ${testimonial.name}:`, e)}
                     />
                     <h3 className="text-xl font-bold">{testimonial.name}</h3>
                   </div>
@@ -166,6 +184,7 @@ export default function Home() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.8, delay: 1 }}
+        onAnimationComplete={() => console.log("🎬 Call-to-Action section animation completed")}
       >
         <div className="mt-20 text-center max-w-2xl mx-auto">
           <h2 className="text-3xl font-bold text-[#1DB954]">Ready to Elevate Your Music Experience?</h2>

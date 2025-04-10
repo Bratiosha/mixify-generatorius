@@ -20,6 +20,8 @@ import { Loader2, User, Mail, Lock, Eye, EyeOff } from "lucide-react";
 import SignInWithGoogleButton from "@/app/(auth)/login/components/SignInWithGoogleButton";
 
 export function SignUpForm() {
+  console.log("🔄 Initializing SignUpForm component");
+  
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [password, setPassword] = useState("");
@@ -31,6 +33,7 @@ export function SignUpForm() {
   });
 
   const validatePassword = (value: string) => {
+    console.log("🔑 Validating password...");
     setPassword(value);
     setPasswordRequirements({
       length: value.length >= 8,
@@ -38,6 +41,7 @@ export function SignUpForm() {
       uppercase: /[A-Z]/.test(value),
       number: /[0-9]/.test(value),
     });
+    console.log("📊 Password requirements status:", passwordRequirements);
   };
 
   const isPasswordValid = Object.values(passwordRequirements).every(Boolean);
@@ -46,29 +50,44 @@ export function SignUpForm() {
 
   const handleSignUp = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    console.log("📝 Form submission started");
+    
     if (!isPasswordValid) {
+      console.log("❌ Password validation failed");
       toast.error("Please ensure your password meets all requirements.");
       return;
     }
+
     setIsLoading(true);
+    console.log("⏳ Signing up user...");
+    
     try {
       const formData = new FormData(e.currentTarget);
+      console.log("📦 Form data collected:", {
+        firstName: formData.get("first-name"),
+        lastName: formData.get("last-name"),
+        email: formData.get("email"),
+      });
+      
       const result = await signup(formData);
+      console.log("✅ Signup result:", result);
       
       if (result.success) {
         toast.success(result.message);
-        // Wait a moment to show the success message before redirecting
+        console.log("🎉 Signup successful, redirecting to login...");
         setTimeout(() => {
           window.location.href = '/login';
         }, 2000);
       } else {
+        console.error("❌ Signup failed:", result.error);
         toast.error(result.error || "Failed to create account. Please try again.");
       }
     } catch (error: any) {
-      console.error("Signup error:", error);
+      console.error("❌ Signup error:", error);
       toast.error(error.message || "Failed to create account. Please try again.");
     } finally {
       setIsLoading(false);
+      console.log("🏁 Signup process completed");
     }
   };
 
@@ -78,6 +97,7 @@ export function SignUpForm() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.8 }}
+        onAnimationComplete={() => console.log("🎬 Signup form animation completed")}
       >
         <Card className="mx-auto w-full max-w-md border-none bg-gray-900/90 backdrop-blur-sm">
           <CardHeader className="space-y-1">
@@ -85,6 +105,7 @@ export function SignUpForm() {
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
+              onAnimationComplete={() => console.log("🎬 Card header animation completed")}
             >
               <CardTitle className="text-3xl font-bold text-white">
                 Create an Account
@@ -101,6 +122,7 @@ export function SignUpForm() {
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.3 }}
                 className="grid grid-cols-2 gap-4"
+                onAnimationComplete={() => console.log("🎬 Name fields animation completed")}
               >
                 <div className="space-y-2">
                   <Label className="text-gray-300" htmlFor="first-name">
@@ -113,6 +135,7 @@ export function SignUpForm() {
                       placeholder="Max"
                       required
                       className="bg-gray-800 text-white placeholder-gray-400 focus:border-[#1DB954] focus:ring-[#1DB954] pl-10"
+                      onChange={(e) => console.log("📝 First name changed:", e.target.value)}
                     />
                     <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                   </div>
@@ -128,6 +151,7 @@ export function SignUpForm() {
                       placeholder="Robinson"
                       required
                       className="bg-gray-800 text-white placeholder-gray-400 focus:border-[#1DB954] focus:ring-[#1DB954] pl-10"
+                      onChange={(e) => console.log("📝 Last name changed:", e.target.value)}
                     />
                     <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                   </div>
@@ -139,6 +163,7 @@ export function SignUpForm() {
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.4 }}
                 className="space-y-2"
+                onAnimationComplete={() => console.log("🎬 Email field animation completed")}
               >
                 <Label className="text-gray-300" htmlFor="email">
                   Email
@@ -151,6 +176,7 @@ export function SignUpForm() {
                     placeholder="m@example.com"
                     required
                     className="bg-gray-800 text-white placeholder-gray-400 focus:border-[#1DB954] focus:ring-[#1DB954] pl-10"
+                    onChange={(e) => console.log("📧 Email changed:", e.target.value)}
                   />
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                 </div>
@@ -161,6 +187,7 @@ export function SignUpForm() {
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.5 }}
                 className="space-y-2"
+                onAnimationComplete={() => console.log("🎬 Password field animation completed")}
               >
                 <Label className="text-gray-300" htmlFor="password">
                   Password
@@ -178,7 +205,10 @@ export function SignUpForm() {
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                   <button
                     type="button"
-                    onClick={() => setShowPassword(!showPassword)}
+                    onClick={() => {
+                      setShowPassword(!showPassword);
+                      console.log("👁️ Password visibility toggled:", !showPassword);
+                    }}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-300"
                   >
                     {showPassword ? (
@@ -226,11 +256,13 @@ export function SignUpForm() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.6 }}
                 className="space-y-4"
+                onAnimationComplete={() => console.log("🎬 Submit button animation completed")}
               >
                 <Button
                   type="submit"
                   disabled={isLoading || !isPasswordValid}
                   className="w-full bg-[#1DB954] hover:bg-[#1ed760] text-white font-semibold py-2 rounded-md transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  onClick={() => console.log("🔄 Submit button clicked")}
                 >
                   {isLoading ? (
                     <>
@@ -260,11 +292,13 @@ export function SignUpForm() {
               animate={{ opacity: 1 }}
               transition={{ delay: 0.7 }}
               className="mt-6 text-center text-sm text-gray-300"
+              onAnimationComplete={() => console.log("🎬 Sign in link animation completed")}
             >
               Already have an account?{" "}
               <Link
                 href="/login"
                 className="font-semibold text-[#1DB954] hover:text-[#1ed760] underline transition-colors"
+                onClick={() => console.log("🔗 Redirecting to login page")}
               >
                 Sign in
               </Link>
